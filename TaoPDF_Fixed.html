@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo PDF - Chuyên Ngữ Trung Ứng Dụng</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .main-container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            flex-wrap: wrap;
+        }
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            min-width: 300px;
+        }
+        h2 { color: #1f2937; margin-top: 0; margin-bottom: 15px; font-size: 20px;}
+        textarea {
+            width: 100%;
+            height: 300px;
+            padding: 15px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+        }
+        .button-group { display: flex; gap: 10px; }
+        button {
+            flex: 1; padding: 12px; font-size: 16px; font-weight: bold;
+            border: none; border-radius: 8px; cursor: pointer; color: white;
+            transition: background 0.3s;
+        }
+        .btn-preview { background-color: #4b5563; }
+        .btn-preview:hover { background-color: #374151; }
+        .btn-download { background-color: #c0504d; }
+        .btn-download:hover { background-color: #a0403d; }
+
+        iframe {
+            width: 100%; height: 600px; border: 1px solid #d1d5db;
+            border-radius: 8px; background: #e5e7eb;
+        }
+
+        .status { font-size: 13px; color: #6b7280; margin-top: -6px; margin-bottom: 12px; min-height: 16px; }
+        .status.error { color: #c0504d; font-weight: bold; }
+
+        /* --- CẤU TRÚC PDF CHIA TRANG ---
+           Quan trọng: KHÔNG dùng "left:-9999px" nữa vì một số bản
+           html2canvas sẽ chụp sai vùng / chụp ra ảnh trống khi phần tử
+           nằm quá xa khung nhìn. Thay vào đó dùng width:0; height:0;
+           overflow:hidden để ẩn mà vẫn giữ toạ độ (0,0) khi chụp. */
+        .pdf-wrapper { position: absolute; top: 0; left: 0; width: 0; height: 0; overflow: hidden; }
+        #pdf-content { background-color: white; }
+
+        /* Định dạng từng trang A4 */
+        .pdf-page {
+            width: 210mm;
+            height: 297mm; /* Cố định chiều cao A4 */
+            position: relative;
+            box-sizing: border-box;
+            font-family: 'Times New Roman', Times, serif;
+            page-break-after: always; /* Tự động ngắt trang PDF sau thẻ này */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: white;
+            margin: 0; /* tránh cộng dồn margin gây lệch/thừa khoảng trắng đầu trang */
+        }
+        .pdf-page:last-child { page-break-after: auto; }
+
+        .watermark {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 130mm; height: 130mm;
+            background-image: var(--logo-url, none);
+            background-size: contain; background-repeat: no-repeat;
+            background-position: center; opacity: 0.15; z-index: 1;
+        }
+        .pdf-header {
+            background-color: #c0504d; color: white;
+            padding: 12px 20px; display: flex;
+            justify-content: space-between; font-size: 14pt;
+            font-weight: bold; z-index: 2; position: relative;
+            margin: 0; line-height: 1.2;
+        }
+        .pdf-body {
+            flex: 1; /* Đẩy footer xuống đáy trang */
+            padding: 30px 40px; z-index: 2; position: relative;
+        }
+        .pdf-text { font-size: 15pt; line-height: 2; white-space: pre-wrap; margin: 0; }
+        .pdf-footer {
+            padding: 0 40px 30px 40px; font-size: 13pt;
+            z-index: 2; position: relative; text-align: left;
+        }
+        .pdf-footer p { margin: 4px 0; }
+        .pdf-footer a { color: #0000FF; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <div class="panel">
+            <h2>1. Nhập nội dung tài liệu</h2>
+            <textarea id="inputText">23. 后来 (hòulái) Hâu lái - Sau này, sau đó
+24. 最后 (zuìhòu) Chuây hâu - Cuối cùng</textarea>
+
+            <h2 style="font-size:16px;">Logo / watermark (tuỳ chọn)</h2>
+            <input type="file" id="logoInput" accept="image/*" style="margin-bottom:15px;">
+            <div class="status" id="logoStatus">Chưa chọn logo — sẽ tạo PDF không có watermark.</div>
+
+            <div class="button-group">
+                <button class="btn-preview" onclick="previewPDF()">👁️ Xem trước</button>
+                <button class="btn-download" onclick="generatePDF()">⬇ Tải về PDF</button>
+            </div>
+            <div class="status" id="genStatus"></div>
+        </div>
+
+        <div class="panel">
+            <h2>2. Bản xem trước</h2>
+            <iframe id="pdf-preview" src="" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+    </div>
+
+    <!-- Khung chứa nội dung PDF (ẩn khỏi màn hình nhưng vẫn "visible" để html2canvas chụp được) -->
+    <div class="pdf-wrapper">
+        <div id="pdf-content"></div>
+    </div>
+
+    <script>
+        let logoDataUrl = null; // logo được nạp dưới dạng base64 để luôn hiển thị được, kể cả khi host trên GitHub Pages
+
+        document.getElementById('logoInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            const statusEl = document.getElementById('logoStatus');
+            if (!file) { logoDataUrl = null; statusEl.textContent = 'Chưa chọn logo — sẽ tạo PDF không có watermark.'; return; }
+            const reader = new FileReader();
+            reader.onload = function (ev) {
+                logoDataUrl = ev.target.result;
+                statusEl.textContent = 'Đã nạp logo: ' + file.name;
+                statusEl.classList.remove('error');
+            };
+            reader.onerror = function () {
+                statusEl.textContent = 'Không đọc được file ảnh, thử ảnh khác.';
+                statusEl.classList.add('error');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Chia nội dung nhập vào thành mảng từng "trang" (mỗi phần tử là nội dung của 1 trang)
+        function splitIntoPages() {
+            const text = document.getElementById('inputText').value;
+            const lines = text.split('\n');
+            const linesPerPage = 20; // TỐI ĐA SỐ DÒNG 1 TRANG (Bạn có thể tăng/giảm số này)
+            const pages = [];
+            for (let i = 0; i < lines.length; i += linesPerPage) {
+                pages.push(lines.slice(i, i + linesPerPage).join('\n'));
+            }
+            if (pages.length === 0) pages.push('');
+            return pages;
+        }
+
+        // Dựng HTML cho MỘT trang duy nhất và gắn vào #pdf-content để chụp
+        function renderSinglePage(chunk) {
+            const container = document.getElementById('pdf-content');
+            container.innerHTML = `
+                <div class="pdf-page" id="current-pdf-page">
+                    <div class="watermark"></div>
+                    <div class="pdf-header">
+                        <span>TÀI LIỆU TIẾNG TRUNG</span>
+                        <span>ID: @chuyennguchungungdung</span>
+                    </div>
+                    <div class="pdf-body">
+                        <div class="pdf-text">${escapeHtml(chunk)}</div>
+                    </div>
+                    <div class="pdf-footer">
+                        <p>Nhận tài liệu free qua TikTok: <b>@chuyennguchungungdung</b></p>
+                        <p>Link: <a href="https://www.tiktok.com/@chuyennguchungungdung?_r=1&_t=ZS-99hcFGMJ61q">https://www.tiktok.com/@chuyennguchungungdung</a></p>
+                    </div>
+                </div>
+            `;
+            return document.getElementById('current-pdf-page');
+        }
+
+        // tránh lỗi khi nội dung chứa ký tự đặc biệt như < >
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function setGenStatus(msg, isError) {
+            const el = document.getElementById('genStatus');
+            el.textContent = msg;
+            el.classList.toggle('error', !!isError);
+        }
+
+        // QUAN TRỌNG: thay vì để html2pdf.js tự chụp toàn bộ nội dung nhiều trang
+        // rồi tự cắt theo mm (dễ lệch làm tròn -> sinh trang trắng dư), ở đây
+        // ta CHỤP TỪNG TRANG MỘT bằng html2canvas rồi TỰ ghép thủ công vào
+        // jsPDF bằng addPage()/addImage(). Cách này không còn phụ thuộc vào
+        // việc "đoán" điểm ngắt trang nên sẽ không còn trang trắng xen kẽ nữa.
+        async function buildPdf() {
+            document.documentElement.style.setProperty('--logo-url', logoDataUrl ? `url(${logoDataUrl})` : 'none');
+            const pages = splitIntoPages();
+            const { jsPDF } = window.jspdf; // được cung cấp sẵn bởi html2pdf.bundle.min.js
+            const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+            const pageWidthMm = 210;
+            const pageHeightMm = 297;
+
+            for (let i = 0; i < pages.length; i++) {
+                const pageEl = renderSinglePage(pages[i]);
+                // chờ 1 nhịp để trình duyệt kịp vẽ xong layout/ảnh nền trước khi chụp
+                await new Promise(resolve => setTimeout(resolve, 50));
+                const canvas = await html2canvas(pageEl, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    scrollX: 0,
+                    scrollY: 0
+                });
+                const imgData = canvas.toDataURL('image/jpeg', 0.98);
+                if (i > 0) pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, pageHeightMm);
+            }
+            return pdf;
+        }
+
+        async function previewPDF() {
+            setGenStatus('Đang tạo bản xem trước...');
+            try {
+                const pdf = await buildPdf();
+                const dataUri = pdf.output('datauristring');
+                document.getElementById('pdf-preview').src = dataUri;
+                setGenStatus('Xem trước xong ✔');
+            } catch (err) {
+                console.error(err);
+                setGenStatus('Lỗi khi tạo bản xem trước: ' + err.message, true);
+            }
+        }
+
+        async function generatePDF() {
+            setGenStatus('Đang tạo file PDF để tải về...');
+            try {
+                const pdf = await buildPdf();
+                pdf.save('TaiLieu_TiengTrung.pdf');
+                setGenStatus('Đã tải PDF ✔');
+            } catch (err) {
+                console.error(err);
+                setGenStatus('Lỗi khi tạo PDF: ' + err.message, true);
+            }
+        }
+
+        window.onload = function () {
+            previewPDF();
+        };
+    </script>
+</body>
+</html>
