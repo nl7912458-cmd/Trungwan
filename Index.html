@@ -4,187 +4,190 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tạo PDF - Chuyên Ngữ Trung Ứng Dụng</title>
-    <!-- Thư viện html2pdf.js dùng để chuyển đổi HTML sang PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        /* CSS cho giao diện người dùng trên web */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f6f8;
             margin: 0;
-            padding: 40px 20px;
+            padding: 20px;
             display: flex;
             justify-content: center;
         }
-        .web-container {
+        .main-container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            flex-wrap: wrap;
+        }
+        .panel {
             background: white;
-            padding: 30px;
+            padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 800px;
+            flex: 1;
+            min-width: 300px;
         }
-        h2 { color: #1f2937; text-align: center; margin-bottom: 5px; }
-        p.subtitle { text-align: center; color: #6b7280; margin-bottom: 20px; }
+        h2 { color: #1f2937; margin-top: 0; margin-bottom: 15px; font-size: 20px;}
         textarea {
             width: 100%;
-            height: 250px;
+            height: 300px;
             padding: 15px;
             border: 1px solid #d1d5db;
             border-radius: 8px;
             font-size: 16px;
             resize: vertical;
             box-sizing: border-box;
-            margin-bottom: 20px;
-            font-family: inherit;
+            margin-bottom: 15px;
         }
-        .btn-download {
-            background-color: #c0504d; /* Màu đỏ giống trong ảnh mẫu của bạn */
-            color: white;
-            border: none;
-            padding: 14px 24px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            width: 100%;
+        .button-group { display: flex; gap: 10px; }
+        button {
+            flex: 1; padding: 12px; font-size: 16px; font-weight: bold;
+            border: none; border-radius: 8px; cursor: pointer; color: white;
             transition: background 0.3s;
         }
+        .btn-preview { background-color: #4b5563; }
+        .btn-preview:hover { background-color: #374151; }
+        .btn-download { background-color: #c0504d; }
         .btn-download:hover { background-color: #a0403d; }
-
-        /* --- CSS DÀNH RIÊNG CHO FILE PDF --- */
-        /* Khung này được ẩn trên web, chỉ hiện ra khi bấm tải PDF */
-        .pdf-wrapper {
-            position: absolute;
-            left: -9999px;
-            top: -9999px;
+        
+        iframe {
+            width: 100%; height: 600px; border: 1px solid #d1d5db;
+            border-radius: 8px; background: #e5e7eb;
         }
-        #pdf-content {
-            width: 210mm;       /* Chiều rộng chuẩn A4 */
-            min-height: 297mm;  /* Chiều cao chuẩn A4 */
-            background-color: white;
+
+        /* --- CẤU TRÚC PDF CHIA TRANG --- */
+        .pdf-wrapper { position: absolute; left: -9999px; top: -9999px; }
+        #pdf-content { background-color: white; }
+        
+        /* Định dạng từng trang A4 */
+        .pdf-page {
+            width: 210mm;
+            height: 297mm; /* Cố định chiều cao A4 */
             position: relative;
             box-sizing: border-box;
             font-family: 'Times New Roman', Times, serif;
-        }
-        
-        /* Logo Watermark chìm ở giữa trang */
-        .watermark {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 130mm;
-            height: 130mm;
-            /* Đọc đúng tên file ảnh bạn đã cung cấp */
-            background-image: url('1.png'); 
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            opacity: 0.15; /* Độ mờ của logo */
-            z-index: 1;
-        }
-
-        /* Thanh Header đỏ ở trên cùng */
-        .pdf-header {
-            background-color: #c0504d;
-            color: white;
-            padding: 12px 20px;
+            page-break-after: always; /* Tự động ngắt trang PDF sau thẻ này */
             display: flex;
-            justify-content: space-between;
-            font-size: 14pt;
-            font-weight: bold;
-            z-index: 2;
-            position: relative;
+            flex-direction: column;
+            overflow: hidden;
+            background: white;
         }
+        .pdf-page:last-child { page-break-after: auto; }
 
-        /* Phần nội dung chữ */
-        .pdf-body {
-            padding: 30px 40px;
-            z-index: 2;
-            position: relative;
+        .watermark {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 130mm; height: 130mm;
+            background-image: url('1000002164.jpg'); 
+            background-size: contain; background-repeat: no-repeat;
+            background-position: center; opacity: 0.15; z-index: 1;
         }
-        .pdf-text {
-            font-size: 15pt;
-            line-height: 2;
-            white-space: pre-wrap; /* Giữ nguyên định dạng xuống dòng của bạn */
+        .pdf-header {
+            background-color: #c0504d; color: white;
+            padding: 12px 20px; display: flex;
+            justify-content: space-between; font-size: 14pt;
+            font-weight: bold; z-index: 2; position: relative;
         }
-
-        /* Phần Footer chứa link TikTok */
+        .pdf-body { 
+            flex: 1; /* Đẩy footer xuống đáy trang */
+            padding: 30px 40px; z-index: 2; position: relative; 
+        }
+        .pdf-text { font-size: 15pt; line-height: 2; white-space: pre-wrap; }
         .pdf-footer {
-            margin-top: 40px;
-            padding: 0 40px 40px 40px;
-            font-size: 13pt;
-            z-index: 2;
-            position: relative;
-            text-align: left;
+            padding: 0 40px 30px 40px; font-size: 13pt;
+            z-index: 2; position: relative; text-align: left;
         }
-        .pdf-footer a {
-            color: #0000FF;
-            text-decoration: none;
-        }
+        .pdf-footer a { color: #0000FF; text-decoration: none; }
     </style>
 </head>
 <body>
 
-    <!-- Giao diện sử dụng trên Web -->
-    <div class="web-container">
-        <h2>Công cụ tạo PDF - Chuyên Ngữ Trung</h2>
-        <p class="subtitle">Chỉ cần dán văn bản vào và bấm tải về, hệ thống sẽ tự ốp vào form PDF có logo.</p>
-        
-        <textarea id="inputText">23. 后来 (hòulái) Hâu lái - Sau này, sau đó
+    <div class="main-container">
+        <div class="panel">
+            <h2>1. Nhập nội dung tài liệu</h2>
+            <textarea id="inputText">23. 后来 (hòulái) Hâu lái - Sau này, sau đó
 24. 最后 (zuìhòu) Chuây hâu - Cuối cùng</textarea>
-        
-        <button class="btn-download" onclick="generatePDF()">⬇ Tải về PDF</button>
-    </div>
-
-    <!-- Form ẩn để convert sang PDF -->
-    <div class="pdf-wrapper">
-        <div id="pdf-content">
-            <!-- Watermark -->
-            <div class="watermark"></div>
             
-            <!-- Header đỏ -->
-            <div class="pdf-header">
-                <span>TÀI LIỆU TIẾNG TRUNG</span>
-                <span>ID: @chuyennguchungungdung</span>
+            <div class="button-group">
+                <button class="btn-preview" onclick="previewPDF()">👁️ Xem trước</button>
+                <button class="btn-download" onclick="generatePDF()">⬇ Tải về PDF</button>
             </div>
+        </div>
 
-            <!-- Nội dung chữ -->
-            <div class="pdf-body">
-                <div class="pdf-text" id="outputText"></div>
-            </div>
-
-            <!-- Footer ghi nhận tài liệu -->
-            <div class="pdf-footer">
-                <p>Nhận tài liệu free qua TikTok: <b>@chuyennguchungungdung</b></p>
-                <p>Link: <a href="https://www.tiktok.com/@chuyennguchungungdung?_r=1&_t=ZS-99hcFGMJ61q">https://www.tiktok.com/@chuyennguchungungdung</a></p>
-            </div>
+        <div class="panel">
+            <h2>2. Bản xem trước</h2>
+            <iframe id="pdf-preview" src=""></iframe>
         </div>
     </div>
 
+    <!-- Khung chứa nội dung PDF (ẩn) -->
+    <div class="pdf-wrapper">
+        <div id="pdf-content"></div>
+    </div>
+
     <script>
-        function generatePDF() {
-            // Lấy chữ từ ô nhập và chèn vào khung PDF ẩn
-            const text = document.getElementById('inputText').value;
-            document.getElementById('outputText').innerText = text;
-
-            // Lấy element chứa giao diện PDF
-            const element = document.getElementById('pdf-content');
-
-            // Cấu hình thư viện in PDF
-            const opt = {
-                margin:       [0, 0, 0, 0], // Để bằng 0 để thanh đỏ tràn sát viền mép trên
+        function getPDFOptions() {
+            return {
+                margin:       [0, 0, 0, 0],
                 filename:     'TaiLieu_TiengTrung.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true }, // useCORS để logo local không bị lỗi
+                html2canvas:  { scale: 2, useCORS: true },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
-
-            // Tiến hành xuất PDF
-            html2pdf().set(opt).from(element).save();
         }
+
+        // Hàm xử lý tự động chia trang
+        function updateContent() {
+            const text = document.getElementById('inputText').value;
+            // Tách chữ thành từng dòng
+            const lines = text.split('\n');
+            const linesPerPage = 20; // TỐI ĐA SỐ DÒNG 1 TRANG (Bạn có thể tăng/giảm số này)
+            const container = document.getElementById('pdf-content');
+            
+            container.innerHTML = ''; // Xóa dữ liệu cũ
+
+            // Vòng lặp cắt chữ và tạo trang mới
+            for (let i = 0; i < lines.length; i += linesPerPage) {
+                const chunk = lines.slice(i, i + linesPerPage).join('\n');
+                
+                const pageHTML = `
+                    <div class="pdf-page">
+                        <div class="watermark"></div>
+                        <div class="pdf-header">
+                            <span>TÀI LIỆU TIẾNG TRUNG</span>
+                            <span>ID: @chuyennguchungungdung</span>
+                        </div>
+                        <div class="pdf-body">
+                            <div class="pdf-text">${chunk}</div>
+                        </div>
+                        <div class="pdf-footer">
+                            <p>Nhận tài liệu free qua TikTok: <b>@chuyennguchungungdung</b></p>
+                            <p>Link: <a href="https://www.tiktok.com/@chuyennguchungungdung?_r=1&_t=ZS-99hcFGMJ61q">https://www.tiktok.com/@chuyennguchungungdung</a></p>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', pageHTML);
+            }
+            return container;
+        }
+
+        function previewPDF() {
+            const element = updateContent();
+            html2pdf().set(getPDFOptions()).from(element).output('bloburl').then(function(url) {
+                document.getElementById('pdf-preview').src = url;
+            });
+        }
+
+        function generatePDF() {
+            const element = updateContent();
+            html2pdf().set(getPDFOptions()).from(element).save();
+        }
+
+        window.onload = function() {
+            previewPDF();
+        };
     </script>
 </body>
 </html>
-
